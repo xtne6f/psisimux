@@ -1,0 +1,13 @@
+*
+!*/
+!*.c
+!*.cpp
+!*.h
+!*.hpp
+!*.sln
+!*.txt
+!*.vcxproj
+!*.vcxproj.filters
+!.gitignore
+!Makefile
+*.FileListAbsolute.txt
