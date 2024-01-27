@@ -72,14 +72,15 @@ private:
         return ArrayToDWORD(&data[4]) | static_cast<int64_t>(ArrayToDWORD(&data[0])) << 32;
     }
     bool InitializeTable(const char *&errorMessage);
-    bool ReadVideoSampleDesc(char index, bool &fHevc, std::vector<uint8_t> &spsPps, std::vector<uint8_t> &buf) const;
-    bool ReadAudioSampleDesc(char index, uint8_t *adtsHeader, std::vector<uint8_t> &buf) const;
-    bool ReadSampleTable(char index, std::vector<int64_t> &stso, std::vector<uint32_t> &stsz,
+    bool ReadVideoSampleDesc(int64_t trakBoxPos, bool &fHevc, std::vector<uint8_t> &spsPps, std::vector<uint8_t> &buf) const;
+    bool ReadAudioSampleDesc(int64_t trakBoxPos, uint8_t *adtsHeader, std::vector<uint8_t> &buf) const;
+    bool ReadSampleTable(int64_t trakBoxPos, std::vector<int64_t> &stso, std::vector<uint32_t> &stsz,
                          std::vector<int64_t> &stts, std::vector<uint32_t> *ctts, int64_t &editTimeOffset, std::vector<uint8_t> &buf) const;
     bool InitializeBlockList(const char *&errorMessage);
     bool ReadCurrentBlock();
     bool InitializePsiCounterInfo(const char *&errorMessage);
-    int ReadBox(const char *path, std::vector<uint8_t> &data) const;
+    std::pair<int64_t, int64_t> FindBoxPosition(const char *path, int64_t currentBoxPos) const;
+    int ReadBox(const char *path, std::vector<uint8_t> &data, int64_t currentBoxPos) const;
     int ReadSample(size_t index, const std::vector<int64_t> &stso, const std::vector<uint32_t> &stsz, std::vector<uint8_t> *data) const;
     static void AddTsPacketsFromPsi(std::vector<uint8_t> &buf, const uint8_t *psi, size_t psiSize, uint8_t &counter, uint16_t pid);
     static bool Add16TsPacketsFromPsi(std::vector<uint8_t> &buf, const uint8_t *psi, size_t psiSize, uint16_t pid);
