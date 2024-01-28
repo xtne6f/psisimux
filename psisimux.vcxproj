@@ -153,12 +153,14 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="b24captionutil.cpp" />
+    <ClCompile Include="iconvb24.cpp" />
     <ClCompile Include="psiarchivereader.cpp" />
     <ClCompile Include="psisimux.cpp" />
     <ClCompile Include="readonlympeg4file.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="b24captionutil.hpp" />
+    <ClInclude Include="iconvb24.hpp" />
     <ClInclude Include="psiarchivereader.hpp" />
     <ClInclude Include="readonlympeg4file.hpp" />
   </ItemGroup>

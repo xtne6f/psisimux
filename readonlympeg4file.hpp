@@ -41,9 +41,9 @@ public:
     {}
     ~CReadOnlyMpeg4File() { Close(); }
 #ifdef _WIN32
-    bool Open(const wchar_t *path, const wchar_t *captionPath, const wchar_t *dataPath, const char *&errorMessage);
+    bool Open(const wchar_t *path, const wchar_t *captionPath, const wchar_t *dataPath, bool convertToArib8, const char *&errorMessage);
 #else
-    bool Open(const char *path, const char *captionPath, const char *dataPath, const char *&errorMessage);
+    bool Open(const char *path, const char *captionPath, const char *dataPath, bool convertToArib8, const char *&errorMessage);
 #endif
     void Close();
     int Read(uint8_t *pBuf, int numToRead);

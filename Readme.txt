@@ -2,7 +2,7 @@
 
 使用法:
 
-psisimux [-s seek][-m msec_seek][-r range][-u duration][-b broadcast_id][-t time][-p][-x caption_ext][-y data_ext][-c caption_src][-d data_src] media_src dest
+psisimux [-s seek][-m msec_seek][-r range][-u duration][-b broadcast_id][-t time][-p][-8][-x caption_ext][-y data_ext][-c caption_src][-d data_src] media_src dest
 
 -s seek (bytes), default=0
   出力ファイルの初期シーク量。0未満のときはファイル末尾から-(seek+1)だけ前方にシークする。
@@ -34,6 +34,10 @@ psisimux [-s seek][-m msec_seek][-r range][-u duration][-b broadcast_id][-t time
   12-19   : 出力開始位置(bytes)
   20-23   : 出力ファイルの長さ(ミリ秒)
   24-27   : 出力開始位置(ミリ秒)
+
+-8
+  文字コードがUTF-8の字幕をARIB8単位符号に変換する。
+  再生ソフトがUTF-8のARIB字幕に未対応で文字化けする場合に使う。
 
 -x caption_ext
   入力メディアファイル名から拡張子を取り除いてcaption_extを追加した文字列を字幕ファイル名とする。

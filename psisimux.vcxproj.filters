@@ -27,6 +27,9 @@
     <ClCompile Include="readonlympeg4file.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="iconvb24.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="b24captionutil.hpp">
@@ -36,6 +39,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="readonlympeg4file.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="iconvb24.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

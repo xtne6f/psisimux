@@ -1,4 +1,5 @@
 ﻿#include "b24captionutil.hpp"
+#include "iconvb24.hpp"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -131,9 +132,9 @@ bool DecodeB24Caption(std::vector<uint8_t> &dest, const char *src)
 }
 
 #ifdef _WIN32
-void LoadWebVttB24Caption(const wchar_t *path, std::vector<std::pair<int64_t, std::vector<uint8_t>>> &captionList)
+void LoadWebVttB24Caption(const wchar_t *path, std::vector<std::pair<int64_t, std::vector<uint8_t>>> &captionList, bool convertToArib8)
 #else
-void LoadWebVttB24Caption(const char *path, std::vector<std::pair<int64_t, std::vector<uint8_t>>> &captionList)
+void LoadWebVttB24Caption(const char *path, std::vector<std::pair<int64_t, std::vector<uint8_t>>> &captionList, bool convertToArib8)
 #endif
 {
     captionList.clear();
@@ -153,6 +154,8 @@ void LoadWebVttB24Caption(const char *path, std::vector<std::pair<int64_t, std::
     uint8_t currentDgiGroup = 0;
     size_t captionManagementIndex = 0;
     enum { VTT_SIGNATURE, VTT_IGNORE, VTT_BODY, VTT_CUE_ID, VTT_CUE_TIME, VTT_CUE } state = VTT_SIGNATURE;
+    int ucsLatinModes[8] = {};
+    std::vector<uint8_t> workBuf;
     std::vector<uint8_t> decodeBuf;
     std::vector<char> buf;
     size_t bufLen = 0;
@@ -238,22 +241,34 @@ void LoadWebVttB24Caption(const char *path, std::vector<std::pair<int64_t, std::
                     decodeBuf[0] = currentDgiGroup | (decodeBuf[0] & 0x7F);
                     if ((decodeBuf[0] & 0x7C) == 0) {
                         // 字幕管理
-                        if (!captionList.empty() && decodeBuf != captionList[captionManagementIndex].second) {
-                            // 内容が変化したので組を変更
-                            currentDgiGroup = currentDgiGroup == 0 ? 0x80 : 0;
-                            decodeBuf[0] = currentDgiGroup | (decodeBuf[0] & 0x7F);
+                        if (convertToArib8) {
+                            ConvertUcsCaptionToArib8(decodeBuf, ucsLatinModes, workBuf);
                         }
-                        captionManagementIndex = captionList.size();
-                        captionList.push_back(std::make_pair(currentQueMsec, decodeBuf));
+                        // PESに格納できるサイズであること
+                        if (decodeBuf.size() <= 65520) {
+                            if (!captionList.empty() && decodeBuf != captionList[captionManagementIndex].second) {
+                                // 内容が変化したので組を変更
+                                currentDgiGroup = currentDgiGroup == 0 ? 0x80 : 0;
+                                decodeBuf[0] = currentDgiGroup | (decodeBuf[0] & 0x7F);
+                            }
+                            captionManagementIndex = captionList.size();
+                            captionList.push_back(std::make_pair(currentQueMsec, decodeBuf));
+                        }
                     }
                     else if (!captionList.empty()) {
                         // 字幕データ
-                        if (captionList[captionManagementIndex].first + CAPTION_MANAGEMENT_RESEND_MSEC < currentQueMsec) {
-                            // 字幕管理を再送
-                            captionList.push_back(std::make_pair(currentQueMsec, captionList[captionManagementIndex].second));
-                            captionManagementIndex = captionList.size() - 1;
+                        if (convertToArib8) {
+                            ConvertUcsCaptionToArib8(decodeBuf, ucsLatinModes, workBuf);
                         }
-                        captionList.push_back(std::make_pair(currentQueMsec, decodeBuf));
+                        // PESに格納できるサイズであること
+                        if (decodeBuf.size() <= 65520) {
+                            if (captionList[captionManagementIndex].first + CAPTION_MANAGEMENT_RESEND_MSEC < currentQueMsec) {
+                                // 字幕管理を再送
+                                captionList.push_back(std::make_pair(currentQueMsec, captionList[captionManagementIndex].second));
+                                captionManagementIndex = captionList.size() - 1;
+                            }
+                            captionList.push_back(std::make_pair(currentQueMsec, decodeBuf));
+                        }
                     }
                     ++captionNumPerSec;
                 }

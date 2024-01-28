@@ -22,9 +22,9 @@ const uint8_t H_265_VIDEO = 0x24;
 }
 
 #ifdef _WIN32
-bool CReadOnlyMpeg4File::Open(const wchar_t *path, const wchar_t *captionPath, const wchar_t *dataPath, const char *&errorMessage)
+bool CReadOnlyMpeg4File::Open(const wchar_t *path, const wchar_t *captionPath, const wchar_t *dataPath, bool convertToArib8, const char *&errorMessage)
 #else
-bool CReadOnlyMpeg4File::Open(const char *path, const char *captionPath, const char *dataPath, const char *&errorMessage)
+bool CReadOnlyMpeg4File::Open(const char *path, const char *captionPath, const char *dataPath, bool convertToArib8, const char *&errorMessage)
 #endif
 {
     Close();
@@ -39,7 +39,7 @@ bool CReadOnlyMpeg4File::Open(const char *path, const char *captionPath, const c
     if (m_fp) {
         m_captionList.clear();
         if (captionPath) {
-            LoadWebVttB24Caption(captionPath, m_captionList);
+            LoadWebVttB24Caption(captionPath, m_captionList, convertToArib8);
         }
         if (dataPath) {
             m_psiDataReader.Open(dataPath);

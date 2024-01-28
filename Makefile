@@ -9,7 +9,7 @@ else
 endif
 
 all: $(TARGET)
-$(TARGET): psisimux.cpp b24captionutil.cpp b24captionutil.hpp psiarchivereader.cpp psiarchivereader.hpp readonlympeg4file.cpp readonlympeg4file.hpp
-	$(CXX) $(CXXFLAGS) $(CPPFLAGS) $(LDFLAGS) $(TARGET_ARCH) -o $@ psisimux.cpp b24captionutil.cpp psiarchivereader.cpp readonlympeg4file.cpp
+$(TARGET): psisimux.cpp b24captionutil.cpp b24captionutil.hpp iconvb24.cpp iconvb24.hpp psiarchivereader.cpp psiarchivereader.hpp readonlympeg4file.cpp readonlympeg4file.hpp
+	$(CXX) $(CXXFLAGS) $(CPPFLAGS) $(LDFLAGS) $(TARGET_ARCH) -o $@ psisimux.cpp b24captionutil.cpp iconvb24.cpp psiarchivereader.cpp readonlympeg4file.cpp
 clean:
 	$(RM) $(TARGET)
