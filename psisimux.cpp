@@ -173,22 +173,27 @@ int main(int argc, char **argv)
 
     int64_t fileSize = file.GetSize();
     int durationMsec = file.GetPositionMsecFromBytes(fileSize);
+    bool seekFailed = false;
     if (seekMsec) {
         seekBytes = file.GetPositionBytesFromMsec(seekMsec < 0 ? durationMsec + seekMsec + 1 : seekMsec);
-        if (seekBytes < 0 || seekBytes >= file.GetSize()) {
-            fprintf(stderr, "Error: seek failed.\n");
-            return 1;
-        }
+        seekFailed = seekBytes < 0 || seekBytes >= fileSize;
     }
-    if (seekBytes) {
+    if (seekBytes && !seekFailed) {
         seekBytes = file.SetPointer(seekBytes < 0 ? seekBytes + 1 : seekBytes,
                                     seekBytes < 0 ? CReadOnlyMpeg4File::MOVE_METHOD_END : CReadOnlyMpeg4File::MOVE_METHOD_BEGIN);
-        if (seekBytes < 0) {
+        seekFailed = seekBytes < 0 || seekBytes >= fileSize;
+    }
+    if (seekFailed) {
+        if (!printHeader) {
             fprintf(stderr, "Error: seek failed.\n");
             return 1;
         }
+        seekBytes = fileSize;
+        seekMsec = durationMsec;
     }
-    seekMsec = file.GetPositionMsecFromBytes(seekBytes);
+    else {
+        seekMsec = file.GetPositionMsecFromBytes(seekBytes);
+    }
 
     std::unique_ptr<FILE, decltype(&fclose)> destFile(nullptr, fclose);
 
@@ -222,14 +227,18 @@ int main(int argc, char **argv)
         packet[2] = 0xff;
         packet[3] = 0x10;
         for (int i = 0; i < 8; ++i) {
-            packet[4 + i] = fileSize >> (8 * i) & 0xff;
-            packet[12 + i] = seekBytes >> (8 * i) & 0xff;
+            packet[8 + i] = fileSize >> (8 * i) & 0xff;
+            packet[16 + i] = seekBytes >> (8 * i) & 0xff;
         }
         for (int i = 0; i < 4; ++i) {
-            packet[20 + i] = durationMsec >> (8 * i) & 0xff;
-            packet[24 + i] = seekMsec >> (8 * i) & 0xff;
+            packet[24 + i] = durationMsec >> (8 * i) & 0xff;
+            packet[28 + i] = seekMsec >> (8 * i) & 0xff;
         }
         if (fwrite(packet, 1, sizeof(packet), destFile ? destFile.get() : stdout) != sizeof(packet)) {
+            return 1;
+        }
+        if (seekFailed) {
+            fprintf(stderr, "Error: seek failed.\n");
             return 1;
         }
     }
