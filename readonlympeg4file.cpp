@@ -28,6 +28,28 @@ bool CReadOnlyMpeg4File::Open(const char *path, const char *captionPath, const c
 #endif
 {
     Close();
+    if (!path) {
+        if (dataPath && m_psiDataReader.Open(dataPath)) {
+            // PSI/SI出力のみ
+            m_captionList.clear();
+            if (captionPath) {
+                LoadWebVttB24Caption(captionPath, m_captionList, convertToArib8);
+            }
+            m_stsoV.clear();
+            m_stsoA[0].clear();
+            m_stsoA[1].clear();
+            m_fHevc = false;
+            if (InitializeBlockList(errorMessage)) {
+                m_blockInfo = m_blockList.begin();
+                m_blockCache.clear();
+                m_pointer = 0;
+                return true;
+            }
+            Close();
+        }
+        return false;
+    }
+
 #ifdef _WIN32
     FILE *fp;
     if (_wfopen_s(&fp, path, L"rb") == 0) {
@@ -63,7 +85,7 @@ void CReadOnlyMpeg4File::Close()
 
 int CReadOnlyMpeg4File::Read(uint8_t *pBuf, int numToRead)
 {
-    if (m_fp) {
+    if (m_fp || m_psiDataReader.IsOpen()) {
         int numRead = 0;
         while (numRead < numToRead) {
             if (m_blockCache.empty() && !ReadCurrentBlock()) {
@@ -86,7 +108,7 @@ int CReadOnlyMpeg4File::Read(uint8_t *pBuf, int numToRead)
 
 int64_t CReadOnlyMpeg4File::SetPointer(int64_t distanceToMove, MOVE_METHOD moveMethod)
 {
-    if (m_fp) {
+    if (m_fp || m_psiDataReader.IsOpen()) {
         int64_t toMove = moveMethod == MOVE_METHOD_CURRENT ? static_cast<int64_t>(m_blockInfo->pos) * 188 + m_pointer + distanceToMove :
                          moveMethod == MOVE_METHOD_END ? GetSize() + distanceToMove : distanceToMove;
         if (toMove >= 0) {
@@ -107,7 +129,7 @@ int64_t CReadOnlyMpeg4File::SetPointer(int64_t distanceToMove, MOVE_METHOD moveM
 
 int64_t CReadOnlyMpeg4File::GetSize() const
 {
-    if (m_fp) {
+    if (m_fp || m_psiDataReader.IsOpen()) {
         return static_cast<int64_t>(m_blockList.back().pos) * 188;
     }
     return -1;
@@ -115,7 +137,7 @@ int64_t CReadOnlyMpeg4File::GetSize() const
 
 int CReadOnlyMpeg4File::GetPositionMsecFromBytes(int64_t posBytes) const
 {
-    if (m_fp && posBytes >= 0) {
+    if ((m_fp || m_psiDataReader.IsOpen()) && posBytes >= 0) {
         BLOCK_100MSEC val;
         val.pos = static_cast<uint32_t>(std::min<int64_t>(posBytes / 188, 0xFFFFFFFF));
         auto it = std::upper_bound(m_blockList.begin(), m_blockList.end(), val,
@@ -127,7 +149,7 @@ int CReadOnlyMpeg4File::GetPositionMsecFromBytes(int64_t posBytes) const
 
 int64_t CReadOnlyMpeg4File::GetPositionBytesFromMsec(int msec) const
 {
-    if (m_fp && msec >= 0) {
+    if ((m_fp || m_psiDataReader.IsOpen()) && msec >= 0) {
         int index = std::min(msec / 100, static_cast<int>(m_blockList.size() - 1));
         return static_cast<int64_t>(m_blockList[index].pos) * 188;
     }
@@ -528,7 +550,7 @@ bool CReadOnlyMpeg4File::InitializeBlockList(const char *&errorMessage)
 
     while (m_blockList.size() < BLOCK_LIST_SIZE_MAX) {
         m_blockList.push_back(block);
-        if (indexV >= m_stsoV.size() && indexA[0] >= m_stsoA[0].size() && indexA[1] >= m_stsoA[1].size()) {
+        if (m_fp ? indexV >= m_stsoV.size() && indexA[0] >= m_stsoA[0].size() && indexA[1] >= m_stsoA[1].size() : itCaption == m_captionList.end()) {
             break;
         }
         int64_t size;
@@ -626,8 +648,11 @@ bool CReadOnlyMpeg4File::ReadCurrentBlock()
     uint8_t counterV = m_blockInfo->counterV;
     uint8_t counterA[2] = { m_blockInfo->counterA[0], m_blockInfo->counterA[1] };
     uint8_t counterC = m_blockInfo->counterC;
-    size_t indexV = m_sttsV[0] < 0 ? static_cast<size_t>((static_cast<int64_t>(blockIndex) * m_timeScaleV / 10 + m_sttsV[1] - 1) / m_sttsV[1]) :
-        std::lower_bound(m_sttsV.begin(), m_sttsV.end(), static_cast<int64_t>(blockIndex) * m_timeScaleV / 10) - m_sttsV.begin();
+    size_t indexV = 0;
+    if (!m_sttsV.empty()) {
+        indexV = m_sttsV[0] < 0 ? static_cast<size_t>((static_cast<int64_t>(blockIndex) * m_timeScaleV / 10 + m_sttsV[1] - 1) / m_sttsV[1]) :
+            std::lower_bound(m_sttsV.begin(), m_sttsV.end(), static_cast<int64_t>(blockIndex) * m_timeScaleV / 10) - m_sttsV.begin();
+    }
     size_t indexA[2] = {};
     for (int a = 0; a < 2 && !m_stsoA[a].empty(); ++a) {
         indexA[a] = m_sttsA[a][0] < 0 ? static_cast<size_t>((static_cast<int64_t>(blockIndex) * m_timeScaleA[a] / 10 + m_sttsA[a][1] - 1) / m_sttsA[a][1]) :
@@ -869,9 +894,21 @@ bool CReadOnlyMpeg4File::InitializePsiCounterInfo(const char *&errorMessage)
 
     size_t readingBlockIndex = 0;
     bool blockSizeMaxExceeded = false;
-    return m_psiDataReader.ReadCodeList([this, &readingBlockIndex, &blockSizeMaxExceeded](int timeMsec, uint16_t psiSize, uint16_t pid) {
+    if (m_psiDataReader.ReadCodeList([this, &readingBlockIndex, &blockSizeMaxExceeded](int timeMsec, uint16_t psiSize, uint16_t pid) {
         size_t blockIndex = timeMsec / 100;
         if (readingBlockIndex < blockIndex) {
+            // PSI/SI出力のみのときはリストの長さを調節する
+            if (!m_fp && blockIndex < BLOCK_LIST_SIZE_MAX) {
+                while (m_blockList.size() <= blockIndex) {
+                    // PAT + PCR + PMT
+                    m_blockList.back().pos += 2 + 16;
+                    BLOCK_100MSEC block = {};
+                    m_blockList.push_back(block);
+                }
+                for (auto it = m_psiCounterInfoMap.begin(); it != m_psiCounterInfoMap.end(); ++it) {
+                    it->second.counterList.resize((m_blockList.size() + 1) / 2, 0);
+                }
+            }
             if (blockIndex < m_blockList.size()) {
                 // 計算された連続性指標の開始値をリストに置く
                 for (auto it = m_psiCounterInfoMap.begin(); it != m_psiCounterInfoMap.end(); ++it) {
@@ -910,7 +947,14 @@ bool CReadOnlyMpeg4File::InitializePsiCounterInfo(const char *&errorMessage)
                 blockSizeMaxExceeded = blockSizeMaxExceeded || m_blockList[blockIndex].pos > BLOCK_SIZE_MAX;
             }
         }
-    }, errorMessage) && !blockSizeMaxExceeded;
+    }, errorMessage) && !blockSizeMaxExceeded) {
+        // PSI/SI出力のみのときはリストの長さを調節する
+        if (!m_fp && m_blockList.size() > readingBlockIndex + 1) {
+            m_blockList.resize(readingBlockIndex + 1);
+        }
+        return true;
+    }
+    return false;
 }
 
 std::pair<int64_t, int64_t> CReadOnlyMpeg4File::FindBoxPosition(const char *path, int64_t currentBoxPos) const

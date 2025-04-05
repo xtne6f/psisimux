@@ -41,6 +41,7 @@ int main(int argc, char **argv)
     int rangeMsec = -1;
     bool printHeader = false;
     bool convertToArib8 = false;
+    bool expansionOnly = false;
 #ifdef _WIN32
     std::wstring captionExtension;
     std::wstring dataExtension;
@@ -64,7 +65,7 @@ int main(int argc, char **argv)
             c = s[1];
         }
         if (c == 'h') {
-            fprintf(stderr, "Usage: psisimux [-s seek][-m msec_seek][-r range][-u duration][-b broadcast_id][-t time][-p][-8][-x caption_ext][-y data_ext][-c caption_src][-d data_src] media_src dest\n");
+            fprintf(stderr, "Usage: psisimux [-s seek][-m msec_seek][-r range][-u duration][-b broadcast_id][-t time][-p][-8][-x caption_ext][-y data_ext][-c caption_src][-d data_src][-e] media_src dest\n");
             return 2;
         }
         bool invalid = false;
@@ -121,6 +122,9 @@ int main(int argc, char **argv)
             else if (c == 'd') {
                 dataName = argv[++i];
             }
+            else if (c == 'e') {
+                expansionOnly = true;
+            }
         }
         else if (i < argc - 1) {
             mediaName = argv[i];
@@ -165,8 +169,9 @@ int main(int argc, char **argv)
     }
 
     const char *errorMessage = nullptr;
-    if (!file.Open(mediaName, captionName[0] ? captionName : !captionExtension.empty() ? captionExtension.c_str() : nullptr,
-                              dataName[0] ? dataName : !dataExtension.empty() ? dataExtension.c_str() : nullptr, convertToArib8, errorMessage)) {
+    if (!file.Open(expansionOnly ? nullptr : mediaName,
+                   captionName[0] ? captionName : !captionExtension.empty() ? captionExtension.c_str() : nullptr,
+                   dataName[0] ? dataName : !dataExtension.empty() ? dataExtension.c_str() : nullptr, convertToArib8, errorMessage)) {
         fprintf(stderr, "Error: %s.\n", errorMessage ? errorMessage : "cannot open file");
         return 1;
     }

@@ -2,7 +2,7 @@
 
 使用法:
 
-psisimux [-s seek][-m msec_seek][-r range][-u duration][-b broadcast_id][-t time][-p][-8][-x caption_ext][-y data_ext][-c caption_src][-d data_src] media_src dest
+psisimux [-s seek][-m msec_seek][-r range][-u duration][-b broadcast_id][-t time][-p][-8][-x caption_ext][-y data_ext][-c caption_src][-d data_src][-e] media_src dest
 
 -s seek (bytes), default=0
   出力ファイルの初期シーク量。0未満のときはファイル末尾から-(seek+1)だけ前方にシークする。
@@ -57,7 +57,13 @@ psisimux [-s seek][-m msec_seek][-r range][-u duration][-b broadcast_id][-t time
 -d data_src
   書庫ファイル名。
   https://github.com/xtne6f/psisiarc で出力された書庫を指定する。
-  ファイルが存在しない場合は無視される。
+  ファイルが存在しない場合は("-e"オプションでなければ)無視される。
+
+-e
+  映像と音声の結合を省略する。
+  書庫の展開と(存在すれば)字幕の結合のみ行う。
+  書庫ファイルが存在しなければ失敗する。
+  入力メディアファイル名は必須だがファイルは存在しなくてもよい("-x"や"-y"オプションの解釈に使われるだけ)。
 
 media_src
   入力メディアファイル名。
